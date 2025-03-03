@@ -1,6 +1,7 @@
-from app import app
-from flask import render_template, request, redirect, url_for, flash
-
+from app import app , mail
+from flask import render_template, request, redirect, url_for,flash
+from .forms import Contact_Form
+from flask_mail import Message
 
 ###
 # Routing for your application.
@@ -23,16 +24,6 @@ def about():
 ###
 
 
-# Flash errors from the form if validation fails
-def flash_errors(form):
-    for field, errors in form.errors.items():
-        for error in errors:
-            flash(u"Error in the %s field - %s" % (
-                getattr(form, field).label.text,
-                error
-            ), 'danger')
-
-
 @app.route('/<file_name>.txt')
 def send_text_file(file_name):
     """Send your static text file."""
@@ -44,8 +35,7 @@ def send_text_file(file_name):
 def add_header(response):
     """
     Add headers to both force latest IE rendering engine or Chrome Frame,
-    and also tell the browser not to cache the rendered page. If we wanted
-    to we could change max-age to 600 seconds which would be 10 minutes.
+    and also tell the browser not to cache the rendered page.
     """
     response.headers['X-UA-Compatible'] = 'IE=Edge,chrome=1'
     response.headers['Cache-Control'] = 'public, max-age=0'
@@ -56,3 +46,26 @@ def add_header(response):
 def page_not_found(error):
     """Custom 404 page."""
     return render_template('404.html'), 404
+
+
+@app.route('/contact', methods=['GET', 'POST'])
+def contact():
+    form = Contact_Form()
+    if form.validate_on_submit():
+        name = form.name.data
+        email = form.email.data
+        subject = form.subject.data
+        message = form.message.data
+        msg = Message(
+            subject=f"New Contact Form Submission: {subject} <{email}>",
+            sender=(name, email), 
+            recipients= ["to@example.com"]
+        )
+        msg.body = f"From: {name} \n\n{message}"
+        try:
+            mail.send(msg)
+            flash('Your message has been sent', 'success')
+            return redirect(url_for('home'))     
+        except Exception as e:
+            flash(f'Error sending email: {str(e)} ', 'danger')
+    return render_template('contact.html', form=form)
